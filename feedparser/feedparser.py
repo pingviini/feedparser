@@ -2817,9 +2817,15 @@ _iso8601_re = [
     + r'(\.(?P<fracsecond>\d+))?'
     + r'(?P<tz>[+-](?P<tzhour>\d{2})(:(?P<tzmin>\d{2}))?|Z)?)?'
     for tmpl in _iso8601_tmpl]
-del tmpl
+try:
+    del tmpl
+except NameError:
+    pass
 _iso8601_matches = [re.compile(regex).match for regex in _iso8601_re]
-del regex
+try:
+    del regex
+except NameError:
+    pass
 def _parse_date_iso8601(dateString):
     '''Parse a variety of ISO-8601-compatible formats like 20040105'''
     m = None
