@@ -76,8 +76,14 @@ RESOLVE_RELATIVE_URIS = 1
 # HTML content, set this to 1.
 SANITIZE_HTML = 1
 
+# ---------- Python 3 modules (make it work if possible) ----------
+try:
+    import rfc822
+except ImportError:
+    from email import _parseaddr as rfc822
+
 # ---------- required modules (should come with any Python distribution) ----------
-import sgmllib, re, sys, copy, urlparse, time, rfc822, types, cgi, urllib, urllib2
+import sgmllib, re, sys, copy, urlparse, time, types, cgi, urllib, urllib2
 try:
     from cStringIO import StringIO as _StringIO
 except:
