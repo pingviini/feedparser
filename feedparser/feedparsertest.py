@@ -152,7 +152,7 @@ def getDescription(xmlfile):
   -->
   """
 
-  data = open(xmlfile).read()
+  data = open(xmlfile, 'rb').read()
   if data[:4] == '\x4c\x6f\xa7\x94':
     data = feedparser._ebcdic_to_ascii(data)
   elif data[:4] == '\x00\x00\xfe\xff':
