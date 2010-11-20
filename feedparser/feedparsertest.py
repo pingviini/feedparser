@@ -195,7 +195,7 @@ def getDescription(xmlfile):
   if not search_results:
     raise RuntimeError, "can't parse %s" % xmlfile
   description, evalString = map(string.strip, list(search_results.groups()))
-  description = xmlfile + ": " + description
+  description = xmlfile + ": " + unicode(description, 'utf8')
   return TestCase.failUnlessEval, description, evalString, skipUnless
 
 def buildTestCase(xmlfile, description, method, evalString):
