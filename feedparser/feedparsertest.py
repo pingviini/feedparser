@@ -65,6 +65,17 @@ def _s2bytes(s):
     # In Python 2.6 and above, bytes and str are the same (TypeError)
     return s
 
+def _l2bytes(l):
+  # Convert a list of ints to bytes if the interpreter is Python 3
+  try:
+    if bytes is not str:
+      # In Python 2.6 and above, this call won't raise an exception
+      # but it will return bytes([65]) as '[65]' instead of 'A'
+      return bytes(l)
+    raise NameError
+  except NameError:
+    return ''.join(map(chr, l))
+
 #---------- custom HTTP server (used to serve test feeds) ----------
 
 _PORT = 8097 # not really configurable, must match hardcoded port in tests
@@ -162,29 +173,29 @@ def getDescription(xmlfile):
   """
 
   data = open(xmlfile, 'rb').read()
-  if data[:4] == '\x4c\x6f\xa7\x94':
+  if data[:4] == _l2bytes([0x4c, 0x6f, 0xa7, 0x94]):
     data = feedparser._ebcdic_to_ascii(data)
-  elif data[:4] == '\x00\x00\xfe\xff':
+  elif data[:4] == _l2bytes([0x00, 0x00, 0xfe, 0xff]):
     if not _utf32_available: return None, None, None, '0'
     data = unicode(data, 'utf-32be').encode('utf-8')
-  elif data[:4] == '\xff\xfe\x00\x00':
+  elif data[:4] == _l2bytes([0xff, 0xfe, 0x00, 0x00]):
     if not _utf32_available: return None, None, None, '0'
     data = unicode(data, 'utf-32le').encode('utf-8')
-  elif data[:4] == '\x00\x00\x00\x3c':
+  elif data[:4] == _l2bytes([0x00, 0x00, 0x00, 0x3c]):
     if not _utf32_available: return None, None, None, '0'
     data = unicode(data, 'utf-32be').encode('utf-8')
-  elif data[:4] == '\x3c\x00\x00\x00':
+  elif data[:4] == _l2bytes([0x3c, 0x00, 0x00, 0x00]):
     if not _utf32_available: return None, None, None, '0'
     data = unicode(data, 'utf-32le').encode('utf-8')
-  elif data[:4] == '\x00\x3c\x00\x3f':
+  elif data[:4] == _l2bytes([0x00, 0x3c, 0x00, 0x3f]):
     data = unicode(data, 'utf-16be').encode('utf-8')
-  elif data[:4] == '\x3c\x00\x3f\x00':
+  elif data[:4] == _l2bytes([0x3c, 0x00, 0x3f, 0x00]):
     data = unicode(data, 'utf-16le').encode('utf-8')
-  elif (data[:2] == '\xfe\xff') and (data[2:4] != '\x00\x00'):
+  elif (data[:2] == _l2bytes([0xfe, 0xff])) and (data[2:4] != _l2bytes([0x00, 0x00])):
     data = unicode(data[2:], 'utf-16be').encode('utf-8')
-  elif (data[:2] == '\xff\xfe') and (data[2:4] != '\x00\x00'):
+  elif (data[:2] == _l2bytes([0xff, 0xfe])) and (data[2:4] != _l2bytes([0x00, 0x00])):
     data = unicode(data[2:], 'utf-16le').encode('utf-8')
-  elif data[:3] == '\xef\xbb\xbf':
+  elif data[:3] == _l2bytes([0xef, 0xbb, 0xbf]):
     data = data[3:]
   skip_results = skip_re.search(data)
   if skip_results:
