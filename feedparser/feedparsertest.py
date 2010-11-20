@@ -25,7 +25,14 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE."""
 
-import feedparser, unittest, new, os, sys, glob, re, urllib, string, posixpath, time, codecs, pprint
+try:
+  import new
+except:
+  class New:
+    def instancemethod(self, a, b, c):
+      return a
+  new = New()
+import feedparser, unittest, os, sys, glob, re, urllib, string, posixpath, time, codecs, pprint
 if not feedparser._XML_AVAILABLE:
   sys.stderr.write('No XML parsers available, unit testing can not proceed\n')
   sys.exit(1)
