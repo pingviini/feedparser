@@ -56,6 +56,15 @@ try:
 except:
   _utf32_available = 0
   
+def _s2bytes(s):
+  # Convert a UTF-8 str to bytes if the interpreter is Python 3
+  try:
+    return bytes(s, 'utf8')
+  except (NameError, TypeError):
+    # In Python 2.5 and below, bytes doesn't exist (NameError)
+    # In Python 2.6 and above, bytes and str are the same (TypeError)
+    return s
+
 #---------- custom HTTP server (used to serve test feeds) ----------
 
 _PORT = 8097 # not really configurable, must match hardcoded port in tests
@@ -138,8 +147,8 @@ class TestBuildRequest(unittest.TestCase):
 
 #---------- parse test files and create test methods ----------
 
-skip_re = re.compile("SkipUnless:\s*(.*?)\n")
-desc_re = re.compile("Description:\s*(.*?)\s*Expect:\s*(.*)\s*-->")
+skip_re = re.compile(_s2bytes("SkipUnless:\s*(.*?)\n"))
+desc_re = re.compile(_s2bytes("Description:\s*(.*?)\s*Expect:\s*(.*)\s*-->"))
 def getDescription(xmlfile):
   """Extract test data
 
