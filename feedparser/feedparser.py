@@ -82,6 +82,17 @@ try:
 except ImportError:
     from email import _parseaddr as rfc822
 
+def _l2bytes(l):
+  # Convert a list of ints to bytes if the interpreter is Python 3
+  try:
+    if bytes is not str:
+      # In Python 2.6 and above, this call won't raise an exception
+      # but it will return bytes([65]) as '[65]' instead of 'A'
+      return bytes(l)
+    raise NameError
+  except NameError:
+    return ''.join(map(chr, l))
+
 # ---------- required modules (should come with any Python distribution) ----------
 import sgmllib, re, sys, copy, urlparse, time, types, cgi, urllib, urllib2
 try:
@@ -335,7 +346,7 @@ def _ebcdic_to_ascii(s):
             )
         import string
         _ebcdic_to_ascii_map = string.maketrans( \
-            ''.join(map(chr, range(256))), ''.join(map(chr, emap)))
+            _l2bytes(range(256)), _l2bytes(emap))
     return s.translate(_ebcdic_to_ascii_map)
  
 _cp1252 = {
