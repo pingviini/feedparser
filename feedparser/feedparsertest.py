@@ -33,6 +33,10 @@ except:
       return a
   new = New()
 import feedparser, unittest, os, sys, glob, re, urllib, string, posixpath, time, codecs, pprint
+try:
+  string.strip
+except AttributeError:
+  string.strip = lambda s: s.strip()
 if not feedparser._XML_AVAILABLE:
   sys.stderr.write('No XML parsers available, unit testing can not proceed\n')
   sys.exit(1)
