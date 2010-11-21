@@ -81,7 +81,7 @@ def _l2bytes(l):
 _PORT = 8097 # not really configurable, must match hardcoded port in tests
 
 class FeedParserTestRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
-  headers_re = re.compile(r"^Header:\s+([^:]+):(.+)$", re.MULTILINE)
+  headers_re = re.compile(_s2bytes(r"^Header:\s+([^:]+):(.+)$"), re.MULTILINE)
   
   def send_head(self):
     """Send custom headers defined in test case
@@ -93,7 +93,7 @@ class FeedParserTestRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     -->
     """
     path = self.translate_path(self.path)
-    headers = dict(self.headers_re.findall(open(path).read()))
+    headers = dict(self.headers_re.findall(open(path, 'rb').read()))
     f = open(path, 'rb')
     headers.setdefault('Status', 200)
     self.send_response(int(headers['Status']))
