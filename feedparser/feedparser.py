@@ -1769,7 +1769,11 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
                         value = unicode(value, self.encoding)
                     except:
                         value = unicode(value, 'iso-8859-1')
-                uattrs.append((unicode(key, self.encoding), value))
+                try:
+                    # Currently, in Python 3 the key is already a str, and cannot be decoded again
+                    uattrs.append((unicode(key, self.encoding), value))
+                except TypeError:
+                    uattrs.append((key, value))
             strattrs = u''.join([u' %s="%s"' % (key, value) for key, value in uattrs])
             if self.encoding:
                 try:
