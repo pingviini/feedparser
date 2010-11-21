@@ -262,9 +262,9 @@ class FeedParserDict(UserDict):
         realkey = self.keymap.get(key, key)
         if type(realkey) == types.ListType:
             for k in realkey:
-                if UserDict.has_key(self, k):
+                if UserDict.__contains__(self, k):
                     return UserDict.__getitem__(self, k)
-        if UserDict.has_key(self, key):
+        if UserDict.__contains__(self, key):
             return UserDict.__getitem__(self, key)
         return UserDict.__getitem__(self, realkey)
 
@@ -289,9 +289,12 @@ class FeedParserDict(UserDict):
         
     def has_key(self, key):
         try:
-            return hasattr(self, key) or UserDict.has_key(self, key)
+            return hasattr(self, key) or UserDict.__contains__(self, key)
         except AttributeError:
             return False
+    # This alias prevents the 2to3 tool from changing the semantics of the
+    # __contains__ function below and exhausting the maximum recursion depth
+    __has_key = has_key
         
     def __getattr__(self, key):
         try:
@@ -311,7 +314,7 @@ class FeedParserDict(UserDict):
             return self.__setitem__(key, value)
 
     def __contains__(self, key):
-        return self.has_key(key)
+        return self.__has_key(key)
 
 def zopeCompatibilityHack():
     global FeedParserDict
