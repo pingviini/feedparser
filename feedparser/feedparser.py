@@ -3297,42 +3297,42 @@ def _getCharacterEncoding(http_headers, xml_data):
     # section F of the XML specification:
     # http://www.w3.org/TR/REC-xml/#sec-guessing-no-ext-info
     try:
-        if xml_data[:4] == '\x4c\x6f\xa7\x94':
+        if xml_data[:4] == _l2bytes([0x4c, 0x6f, 0xa7, 0x94]):
             # EBCDIC
             xml_data = _ebcdic_to_ascii(xml_data)
-        elif xml_data[:4] == '\x00\x3c\x00\x3f':
+        elif xml_data[:4] == _l2bytes([0x00, 0x3c, 0x00, 0x3f]):
             # UTF-16BE
             sniffed_xml_encoding = 'utf-16be'
             xml_data = unicode(xml_data, 'utf-16be').encode('utf-8')
-        elif (len(xml_data) >= 4) and (xml_data[:2] == '\xfe\xff') and (xml_data[2:4] != '\x00\x00'):
+        elif (len(xml_data) >= 4) and (xml_data[:2] == _l2bytes([0xfe, 0xff])) and (xml_data[2:4] != _l2bytes([0x00, 0x00])):
             # UTF-16BE with BOM
             sniffed_xml_encoding = 'utf-16be'
             xml_data = unicode(xml_data[2:], 'utf-16be').encode('utf-8')
-        elif xml_data[:4] == '\x3c\x00\x3f\x00':
+        elif xml_data[:4] == _l2bytes([0x3c, 0x00, 0x3f, 0x00]):
             # UTF-16LE
             sniffed_xml_encoding = 'utf-16le'
             xml_data = unicode(xml_data, 'utf-16le').encode('utf-8')
-        elif (len(xml_data) >= 4) and (xml_data[:2] == '\xff\xfe') and (xml_data[2:4] != '\x00\x00'):
+        elif (len(xml_data) >= 4) and (xml_data[:2] == _l2bytes([0xff, 0xfe])) and (xml_data[2:4] != _l2bytes([0x00, 0x00])):
             # UTF-16LE with BOM
             sniffed_xml_encoding = 'utf-16le'
             xml_data = unicode(xml_data[2:], 'utf-16le').encode('utf-8')
-        elif xml_data[:4] == '\x00\x00\x00\x3c':
+        elif xml_data[:4] == _l2bytes([0x00, 0x00, 0x00, 0x3c]):
             # UTF-32BE
             sniffed_xml_encoding = 'utf-32be'
             xml_data = unicode(xml_data, 'utf-32be').encode('utf-8')
-        elif xml_data[:4] == '\x3c\x00\x00\x00':
+        elif xml_data[:4] == _l2bytes([0x3c, 0x00, 0x00, 0x00]):
             # UTF-32LE
             sniffed_xml_encoding = 'utf-32le'
             xml_data = unicode(xml_data, 'utf-32le').encode('utf-8')
-        elif xml_data[:4] == '\x00\x00\xfe\xff':
+        elif xml_data[:4] == _l2bytes([0x00, 0x00, 0xfe, 0xff]):
             # UTF-32BE with BOM
             sniffed_xml_encoding = 'utf-32be'
             xml_data = unicode(xml_data[4:], 'utf-32be').encode('utf-8')
-        elif xml_data[:4] == '\xff\xfe\x00\x00':
+        elif xml_data[:4] == _l2bytes([0xff, 0xfe, 0x00, 0x00]):
             # UTF-32LE with BOM
             sniffed_xml_encoding = 'utf-32le'
             xml_data = unicode(xml_data[4:], 'utf-32le').encode('utf-8')
-        elif xml_data[:3] == '\xef\xbb\xbf':
+        elif xml_data[:3] == _l2bytes([0xef, 0xbb, 0xbf]):
             # UTF-8 with BOM
             sniffed_xml_encoding = 'utf-8'
             xml_data = unicode(xml_data[3:], 'utf-8').encode('utf-8')
