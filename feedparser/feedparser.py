@@ -3458,7 +3458,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     result['entries'] = []
     if _XML_AVAILABLE:
         result['bozo'] = 0
-    if type(handlers) == types.InstanceType:
+    if not isinstance(handlers, list):
         handlers = [handlers]
     try:
         f = _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, handlers, extra_headers)
