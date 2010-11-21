@@ -126,6 +126,7 @@ class FeedParserTestServer(Thread):
     self.ready = 0
 
 #---------- dummy test case class (test methods are added dynamically) ----------
+unicode_re = re.compile(_s2bytes(" u'"))
 
 class TestCase(unittest.TestCase):
   def failUnlessEval(self, evalString, env, msg=None):
@@ -136,8 +137,16 @@ class TestCase(unittest.TestCase):
     except:
       pass
     failure=(msg or 'not eval(%s) \nWITH env(%s)' % (evalString, pprint.pformat(env)))
-    if not eval(evalString, env):
-      raise self.failureException, failure
+    try:
+      if not eval(evalString, env):
+        raise self.failureException, failure
+    except SyntaxError:
+      # Python 3 doesn't have the `u""` syntax, so evalString needs to be modified,
+      # which will require the failure message to be updated
+      evalString = re.sub(unicode_re, _s2bytes(" '"), evalString)
+      failure=(msg or 'not eval(%s) \nWITH env(%s)' % (evalString, pprint.pformat(env)))
+      if not eval(evalString, env):
+        raise self.failureException, failure
 
 
 #---------- additional api unit tests, not backed by files
