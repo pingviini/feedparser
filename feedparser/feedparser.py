@@ -3377,35 +3377,35 @@ def _toUTF8(data, encoding):
     '''
     if _debug: sys.stderr.write('entering _toUTF8, trying encoding %s\n' % encoding)
     # strip Byte Order Mark (if present)
-    if (len(data) >= 4) and (data[:2] == '\xfe\xff') and (data[2:4] != '\x00\x00'):
+    if (len(data) >= 4) and (data[:2] == _l2bytes([0xfe, 0xff])) and (data[2:4] != _l2bytes([0x00, 0x00])):
         if _debug:
             sys.stderr.write('stripping BOM\n')
             if encoding != 'utf-16be':
                 sys.stderr.write('trying utf-16be instead\n')
         encoding = 'utf-16be'
         data = data[2:]
-    elif (len(data) >= 4) and (data[:2] == '\xff\xfe') and (data[2:4] != '\x00\x00'):
+    elif (len(data) >= 4) and (data[:2] == _l2bytes([0xff, 0xfe])) and (data[2:4] != _l2bytes([0x00, 0x00])):
         if _debug:
             sys.stderr.write('stripping BOM\n')
             if encoding != 'utf-16le':
                 sys.stderr.write('trying utf-16le instead\n')
         encoding = 'utf-16le'
         data = data[2:]
-    elif data[:3] == '\xef\xbb\xbf':
+    elif data[:3] == _l2bytes([0xef, 0xbb, 0xbf]):
         if _debug:
             sys.stderr.write('stripping BOM\n')
             if encoding != 'utf-8':
                 sys.stderr.write('trying utf-8 instead\n')
         encoding = 'utf-8'
         data = data[3:]
-    elif data[:4] == '\x00\x00\xfe\xff':
+    elif data[:4] == _l2bytes([0x00, 0x00, 0xfe, 0xff]):
         if _debug:
             sys.stderr.write('stripping BOM\n')
             if encoding != 'utf-32be':
                 sys.stderr.write('trying utf-32be instead\n')
         encoding = 'utf-32be'
         data = data[4:]
-    elif data[:4] == '\xff\xfe\x00\x00':
+    elif data[:4] == _l2bytes([0xff, 0xfe, 0x00, 0x00]):
         if _debug:
             sys.stderr.write('stripping BOM\n')
             if encoding != 'utf-32le':
