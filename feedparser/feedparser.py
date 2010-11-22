@@ -203,7 +203,7 @@ sgmllib.tagfind = re.compile('[a-zA-Z][-_.:a-zA-Z0-9]*')
 sgmllib.special = re.compile('<!')
 sgmllib.charref = re.compile('&#(\d+|x[0-9a-fA-F]+);')
 
-if sgmllib.endbracket.search(_s2bytes(' <')).start(0):
+if sgmllib.endbracket.search(' <').start(0):
     class EndBracketMatch:
         endbracket = re.compile('''([^'"<>]|"[^"]*"(?=>|/|\s|\w+=)|'[^']*'(?=>|/|\s|\w+=))*(?=[<>])|.*?(?=[<>])''')
         def search(self,string,index=0):
@@ -1746,13 +1746,18 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
         return j
 
     def feed(self, data):
-        data = re.compile(_s2bytes(r'<!((?!DOCTYPE|--|\[))'), re.IGNORECASE).sub(_s2bytes(r'&lt;!\1'), data)
+        data = re.compile(r'<!((?!DOCTYPE|--|\[))', re.IGNORECASE).sub(r'&lt;!\1', data)
         #data = re.sub(r'<(\S+?)\s*?/>', self._shorttag_replace, data) # bug [ 1399464 ] Bad regexp for _shorttag_replace
-        data = re.sub(_s2bytes(r'<([^<>\s]+?)\s*/>'), self._shorttag_replace, data) 
-        data = data.replace(_s2bytes('&#39;'), _s2bytes("'"))
-        data = data.replace(_s2bytes('&#34;'), _s2bytes('"'))
-        if self.encoding and type(data) == type(u''):
-            data = data.encode(self.encoding)
+        data = re.sub(r'<([^<>\s]+?)\s*/>', self._shorttag_replace, data) 
+        data = data.replace('&#39;', "'")
+        data = data.replace('&#34;', '"')
+        try:
+            bytes
+            if bytes is str:
+                raise NameError
+        except NameError:
+            if self.encoding and type(data) == type(u''):
+                data = data.encode(self.encoding)
         sgmllib.SGMLParser.feed(self, data)
         sgmllib.SGMLParser.close(self)
 
