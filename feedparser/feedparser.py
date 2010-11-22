@@ -105,9 +105,12 @@ def _l2bytes(l):
 # ---------- required modules (should come with any Python distribution) ----------
 import sgmllib, re, sys, copy, urlparse, time, types, cgi, urllib, urllib2
 try:
-    from cStringIO import StringIO as _StringIO
-except:
-    from StringIO import StringIO as _StringIO
+    from io import BytesIO as _StringIO
+except ImportError:
+    try:
+        from cStringIO import StringIO as _StringIO
+    except:
+        from StringIO import StringIO as _StringIO
 
 # ---------- optional modules (feedparser will work without these, but with reduced functionality) ----------
 
