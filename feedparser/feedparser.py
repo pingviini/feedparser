@@ -1724,9 +1724,9 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
       'source', 'track', 'wbr'
     ]
 
-    def __init__(self, encoding, type):
+    def __init__(self, encoding, _type):
         self.encoding = encoding
-        self.type = type
+        self._type = _type
         if _debug: sys.stderr.write('entering BaseHTMLProcessor, encoding=%s\n' % self.encoding)
         sgmllib.SGMLParser.__init__(self)
 
@@ -1743,7 +1743,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
 
     def parse_starttag(self,i):
         j=sgmllib.SGMLParser.parse_starttag(self, i)
-        if self.type == 'application/xhtml+xml':
+        if self._type == 'application/xhtml+xml':
             if j>2 and self.rawdata[j-2:j]==_s2bytes('/>'):
                 self.unknown_endtag(self.lasttag)
         return j
@@ -2355,8 +2355,8 @@ class _RelativeURIResolver(_BaseHTMLProcessor):
                      ('q', 'cite'),
                      ('script', 'src')]
 
-    def __init__(self, baseuri, encoding, type):
-        _BaseHTMLProcessor.__init__(self, encoding, type)
+    def __init__(self, baseuri, encoding, _type):
+        _BaseHTMLProcessor.__init__(self, encoding, _type)
         self.baseuri = baseuri
 
     def resolveURI(self, uri):
@@ -2369,11 +2369,11 @@ class _RelativeURIResolver(_BaseHTMLProcessor):
         attrs = [(key, ((tag, key) in self.relative_uris) and self.resolveURI(value) or value) for key, value in attrs]
         _BaseHTMLProcessor.unknown_starttag(self, tag, attrs)
 
-def _resolveRelativeURIs(htmlSource, baseURI, encoding, type):
+def _resolveRelativeURIs(htmlSource, baseURI, encoding, _type):
     if _debug:
         sys.stderr.write('entering _resolveRelativeURIs\n')
 
-    p = _RelativeURIResolver(baseURI, encoding, type)
+    p = _RelativeURIResolver(baseURI, encoding, _type)
     p.feed(htmlSource)
     return p.output()
 
@@ -2513,7 +2513,7 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
                 self.unacceptablestack += 1
 
             # add implicit namespaces to html5 inline svg/mathml
-            if self.type.endswith('html'):
+            if self._type.endswith('html'):
                 if not dict(attrs).get('xmlns'):
                     if tag=='svg':
                         attrs.append( ('xmlns','http://www.w3.org/2000/svg') )
@@ -2614,8 +2614,8 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
         return ' '.join(clean)
 
 
-def _sanitizeHTML(htmlSource, encoding, type):
-    p = _HTMLSanitizer(encoding, type)
+def _sanitizeHTML(htmlSource, encoding, _type):
+    p = _HTMLSanitizer(encoding, _type)
     p.feed(htmlSource)
     data = p.output()
     if TIDY_MARKUP:
