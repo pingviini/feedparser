@@ -3512,10 +3512,14 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     # save HTTP headers
     if hasattr(f, 'info'):
         info = f.info()
-        etag = info.getheader('ETag')
+        if hasattr(info, 'getheader'):
+            etag = info.getheader('ETag')
+            last_modified = info.getheader('Last-Modified')
+        else:
+            etag = f.headers.get('ETag')
+            last_modified = f.headers.get('Last-Modified')
         if etag:
             result['etag'] = etag
-        last_modified = info.getheader('Last-Modified')
         if last_modified:
             result['modified'] = _parse_date(last_modified)
     if hasattr(f, 'url'):
@@ -3524,7 +3528,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     if hasattr(f, 'status'):
         result['status'] = f.status
     if hasattr(f, 'headers'):
-        result['headers'] = f.headers.dict
+        result['headers'] = dict(f.headers)
     if hasattr(f, 'close'):
         f.close()
 
