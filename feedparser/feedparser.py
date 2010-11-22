@@ -1734,9 +1734,9 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
     def _shorttag_replace(self, match):
         tag = match.group(1)
         if tag in self.elements_no_end_tag:
-            return '<' + tag + ' />'
+            return _s2bytes('<') + tag + _s2bytes(' />')
         else:
-            return '<' + tag + '></' + tag + '>'
+            return _s2bytes('<') + tag + _s2bytes('></') + tag + _s2bytes('>')
 
     def parse_starttag(self,i):
         j=sgmllib.SGMLParser.parse_starttag(self, i)
@@ -1746,11 +1746,11 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
         return j
 
     def feed(self, data):
-        data = re.compile(r'<!((?!DOCTYPE|--|\[))', re.IGNORECASE).sub(r'&lt;!\1', data)
+        data = re.compile(_s2bytes(r'<!((?!DOCTYPE|--|\[))'), re.IGNORECASE).sub(_s2bytes(r'&lt;!\1'), data)
         #data = re.sub(r'<(\S+?)\s*?/>', self._shorttag_replace, data) # bug [ 1399464 ] Bad regexp for _shorttag_replace
-        data = re.sub(r'<([^<>\s]+?)\s*/>', self._shorttag_replace, data) 
-        data = data.replace('&#39;', "'")
-        data = data.replace('&#34;', '"')
+        data = re.sub(_s2bytes(r'<([^<>\s]+?)\s*/>'), self._shorttag_replace, data) 
+        data = data.replace(_s2bytes('&#39;'), _s2bytes("'"))
+        data = data.replace(_s2bytes('&#34;'), _s2bytes('"'))
         if self.encoding and type(data) == type(u''):
             data = data.encode(self.encoding)
         sgmllib.SGMLParser.feed(self, data)
@@ -3446,7 +3446,7 @@ def _stripDoctype(data):
     
     entity_pattern = re.compile(_s2bytes(r'^\s*<!ENTITY([^>]*?)>'), re.MULTILINE)
     entity_results=entity_pattern.findall(head)
-    head = entity_pattern.sub('', head)
+    head = entity_pattern.sub(_s2bytes(''), head)
     doctype_pattern = re.compile(_s2bytes(r'^\s*<!DOCTYPE([^>]*?)>'), re.MULTILINE)
     doctype_results = doctype_pattern.findall(head)
     doctype = doctype_results and doctype_results[0] or ''
