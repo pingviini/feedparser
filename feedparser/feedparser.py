@@ -82,6 +82,15 @@ try:
 except ImportError:
     from email import _parseaddr as rfc822
 
+def _s2bytes(s):
+  # Convert a UTF-8 str to bytes if the interpreter is Python 3
+  try:
+    return bytes(s, 'utf8')
+  except (NameError, TypeError):
+    # In Python 2.5 and below, bytes doesn't exist (NameError)
+    # In Python 2.6 and above, bytes and str are the same (TypeError)
+    return s
+
 def _l2bytes(l):
   # Convert a list of ints to bytes if the interpreter is Python 3
   try:
@@ -3428,14 +3437,14 @@ def _stripDoctype(data):
     rss_version may be 'rss091n' or None
     stripped_data is the same XML document, minus the DOCTYPE
     '''
-    start = re.search('<\w',data)
+    start = re.search(_s2bytes('<\w'), data)
     start = start and start.start() or -1
     head,data = data[:start+1], data[start+1:]
     
-    entity_pattern = re.compile(r'^\s*<!ENTITY([^>]*?)>', re.MULTILINE)
+    entity_pattern = re.compile(_s2bytes(r'^\s*<!ENTITY([^>]*?)>'), re.MULTILINE)
     entity_results=entity_pattern.findall(head)
     head = entity_pattern.sub('', head)
-    doctype_pattern = re.compile(r'^\s*<!DOCTYPE([^>]*?)>', re.MULTILINE)
+    doctype_pattern = re.compile(_s2bytes(r'^\s*<!DOCTYPE([^>]*?)>'), re.MULTILINE)
     doctype_results = doctype_pattern.findall(head)
     doctype = doctype_results and doctype_results[0] or ''
     if doctype.lower().count('netscape'):
@@ -3446,7 +3455,7 @@ def _stripDoctype(data):
     # only allow in 'safe' inline entity definitions
     replacement=''
     if len(doctype_results)==1 and entity_results:
-       safe_pattern=re.compile('\s+(\w+)\s+"(&#\w+;|[^&"]*)"')
+       safe_pattern=re.compile(_s2bytes('\s+(\w+)\s+"(&#\w+;|[^&"]*)"'))
        safe_entities=filter(lambda e: safe_pattern.match(e),entity_results)
        if safe_entities:
            replacement='<!DOCTYPE feed [\n  <!ENTITY %s>\n]>' % '>\n  <!ENTITY '.join(safe_entities)
