@@ -906,21 +906,21 @@ class _FeedParserMixin:
     # text, but this is routinely ignored.  This is an attempt to detect
     # the most common cases.  As false positives often result in silent
     # data loss, this function errs on the conservative side.
-    def lookslikehtml(self, str):
+    def lookslikehtml(self, s):
         if self.version.startswith('atom'): return
         if self.contentparams.get('type','text/html') != 'text/plain': return
 
         # must have a close tag or a entity reference to qualify
-        if not (re.search(r'</(\w+)>',str) or re.search("&#?\w+;",str)): return
+        if not (re.search(r'</(\w+)>',s) or re.search("&#?\w+;",s)): return
 
         # all tags must be in a restricted subset of valid HTML tags
         if filter(lambda t: t.lower() not in _HTMLSanitizer.acceptable_elements,
-            re.findall(r'</?(\w+)',str)): return
+            re.findall(r'</?(\w+)',s)): return
 
         # all entities must have been defined as valid HTML entities
         from htmlentitydefs import entitydefs
         if filter(lambda e: e not in entitydefs.keys(),
-            re.findall(r'&(\w+);',str)): return
+            re.findall(r'&(\w+);',s)): return
 
         return 1
 
