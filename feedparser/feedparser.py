@@ -203,7 +203,7 @@ sgmllib.tagfind = re.compile('[a-zA-Z][-_.:a-zA-Z0-9]*')
 sgmllib.special = re.compile('<!')
 sgmllib.charref = re.compile('&#(\d+|x[0-9a-fA-F]+);')
 
-if sgmllib.endbracket.search(' <').start(0):
+if sgmllib.endbracket.search(_s2bytes(' <')).start(0):
     class EndBracketMatch:
         endbracket = re.compile('''([^'"<>]|"[^"]*"(?=>|/|\s|\w+=)|'[^']*'(?=>|/|\s|\w+=))*(?=[<>])|.*?(?=[<>])''')
         def search(self,string,index=0):
@@ -1741,7 +1741,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
     def parse_starttag(self,i):
         j=sgmllib.SGMLParser.parse_starttag(self, i)
         if self.type == 'application/xhtml+xml':
-            if j>2 and self.rawdata[j-2:j]=='/>':
+            if j>2 and self.rawdata[j-2:j]==_s2bytes('/>'):
                 self.unknown_endtag(self.lasttag)
         return j
 
