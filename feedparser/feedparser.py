@@ -1738,9 +1738,9 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
     def _shorttag_replace(self, match):
         tag = match.group(1)
         if tag in self.elements_no_end_tag:
-            return _s2bytes('<') + tag + _s2bytes(' />')
+            return '<' + tag + ' />'
         else:
-            return _s2bytes('<') + tag + _s2bytes('></') + tag + _s2bytes('>')
+            return '<' + tag + '></' + tag + '>'
 
     def parse_starttag(self,i):
         j=sgmllib.SGMLParser.parse_starttag(self, i)
