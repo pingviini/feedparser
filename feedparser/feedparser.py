@@ -3360,11 +3360,11 @@ def _getCharacterEncoding(http_headers, xml_data):
         else:
             # ASCII-compatible
             pass
-        xml_encoding_match = re.compile('^<\?.*encoding=[\'"](.*?)[\'"].*\?>').match(xml_data)
+        xml_encoding_match = re.compile(_s2bytes('^<\?.*encoding=[\'"](.*?)[\'"].*\?>')).match(xml_data)
     except:
         xml_encoding_match = None
     if xml_encoding_match:
-        xml_encoding = xml_encoding_match.groups()[0].lower()
+        xml_encoding = xml_encoding_match.groups()[0].decode('utf-8').lower()
         if sniffed_xml_encoding and (xml_encoding in ('iso-10646-ucs-2', 'ucs-2', 'csunicode', 'iso-10646-ucs-4', 'ucs-4', 'csucs4', 'utf-16', 'utf-32', 'utf_16', 'utf_32', 'utf16', 'u16')):
             xml_encoding = sniffed_xml_encoding
     acceptable_content_type = 0
