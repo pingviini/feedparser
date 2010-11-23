@@ -3458,19 +3458,19 @@ def _stripDoctype(data):
     head = entity_pattern.sub(_s2bytes(''), head)
     doctype_pattern = re.compile(_s2bytes(r'^\s*<!DOCTYPE([^>]*?)>'), re.MULTILINE)
     doctype_results = doctype_pattern.findall(head)
-    doctype = doctype_results and doctype_results[0] or ''
-    if doctype.lower().count('netscape'):
+    doctype = doctype_results and doctype_results[0] or _s2bytes('')
+    if doctype.lower().count(_s2bytes('netscape')):
         version = 'rss091n'
     else:
         version = None
 
     # only allow in 'safe' inline entity definitions
-    replacement=''
+    replacement=_s2bytes('')
     if len(doctype_results)==1 and entity_results:
        safe_pattern=re.compile(_s2bytes('\s+(\w+)\s+"(&#\w+;|[^&"]*)"'))
        safe_entities=filter(lambda e: safe_pattern.match(e),entity_results)
        if safe_entities:
-           replacement='<!DOCTYPE feed [\n  <!ENTITY %s>\n]>' % '>\n  <!ENTITY '.join(safe_entities)
+           replacement=_s2bytes('<!DOCTYPE feed [\n  <!ENTITY') + _s2bytes('>\n  <!ENTITY ').join(safe_entities) + _s2bytes('>\n]>')
     data = doctype_pattern.sub(replacement, head) + data
 
     return version, data, dict(replacement and safe_pattern.findall(replacement))
