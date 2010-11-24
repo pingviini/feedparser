@@ -3560,8 +3560,8 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     if data is not None:
         result['version'], data, entities = _stripDoctype(data)
 
-    baseuri = http_headers.get('content-location', result.get('href'))
-    baselang = http_headers.get('content-language', None)
+    baseuri = http_headers.get('content-location', http_headers.get('Content-Location', result.get('href')))
+    baselang = http_headers.get('content-language', http_headers.get('Content-Language', None))
 
     # if server sent 304, we're done
     if result.get('status', 0) == 304:
