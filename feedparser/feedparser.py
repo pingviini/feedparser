@@ -2763,9 +2763,9 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
         # iri support
         try:
             if isinstance(url_file_stream_or_string,unicode):
-                url_file_stream_or_string = url_file_stream_or_string.encode('idna')
+                url_file_stream_or_string = url_file_stream_or_string.encode('idna').decode('utf-8')
             else:
-                url_file_stream_or_string = url_file_stream_or_string.decode('utf-8').encode('idna')
+                url_file_stream_or_string = url_file_stream_or_string.decode('utf-8').encode('idna').decode('utf-8')
         except:
             pass
 
