@@ -93,7 +93,7 @@ class FeedParserTestRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     -->
     """
     path = self.translate_path(self.path)
-    headers = dict(self.headers_re.findall(open(path, 'rb').read()))
+    headers = dict([(k.decode('utf-8'), v.decode('utf-8')) for k, v in self.headers_re.findall(open(path, 'rb').read())])
     f = open(path, 'rb')
     headers.setdefault('Status', 200)
     self.send_response(int(headers['Status']))
