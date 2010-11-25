@@ -2938,7 +2938,7 @@ def _parse_date_iso8601(dateString):
     # Python's time.mktime() is a wrapper around the ANSI C mktime(3c)
     # which is guaranteed to normalize d/m/y/h/m/s.
     # Many implementations have bugs, but we'll pretend they don't.
-    return time.localtime(time.mktime(tm))
+    return time.localtime(time.mktime(tuple(tm)))
 registerDateHandler(_parse_date_iso8601)
     
 # 8-bit date handling routines written by ytrewq1.
