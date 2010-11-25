@@ -1759,6 +1759,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
             bytes
             if bytes is str:
                 raise NameError
+            self.encoding = ''
         except NameError:
             if self.encoding and type(data) == type(u''):
                 data = data.encode(self.encoding)
