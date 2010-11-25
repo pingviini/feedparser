@@ -767,6 +767,11 @@ class _FeedParserMixin:
                 else:
                     pieces = pieces[1:-1]
 
+        # Ensure each piece is a str for Python 3
+        for (i, v) in enumerate(pieces):
+            if not isinstance(v, basestring):
+                pieces[i] = v.decode('utf-8')
+
         output = ''.join(pieces)
         if stripWhitespace:
             output = output.strip()
