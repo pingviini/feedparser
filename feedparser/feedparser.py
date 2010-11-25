@@ -846,7 +846,7 @@ class _FeedParserMixin:
 
         # address common error where people take data that is already
         # utf-8, presume that it is iso-8859-1, and re-encode it.
-        if self.encoding=='utf-8' and type(output) == type(u''):
+        if self.encoding in ('utf-8', 'utf-8_INVALID_PYTHON_3') and type(output) == type(u''):
             try:
                 output = unicode(output.encode('iso-8859-1'), 'utf-8')
             except:
@@ -1764,7 +1764,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
             bytes
             if bytes is str:
                 raise NameError
-            self.encoding = ''
+            self.encoding = self.encoding + '_INVALID_PYTHON_3'
         except NameError:
             if self.encoding and type(data) == type(u''):
                 data = data.encode(self.encoding)
