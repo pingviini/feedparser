@@ -3179,8 +3179,8 @@ def _parse_date_w3dtf(dateString):
 
     __date_re = ('(?P<year>\d\d\d\d)'
                  '(?:(?P<dsep>-|)'
-                 '(?:(?P<julian>\d\d\d)'
-                 '|(?P<month>\d\d)(?:(?P=dsep)(?P<day>\d\d))?))?')
+                 '(?:(?P<month>\d\d)(?:(?P=dsep)(?P<day>\d\d))?'
+                 '|(?P<julian>\d\d\d)))?')
     __tzd_re = '(?P<tzd>[-+](?P<tzdhours>\d\d)(?::?(?P<tzdminutes>\d\d))|Z)'
     __tzd_rx = re.compile(__tzd_re)
     __time_re = ('(?P<hours>\d\d)(?P<tsep>:|)(?P<minutes>\d\d)'
