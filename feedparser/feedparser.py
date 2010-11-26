@@ -1750,7 +1750,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
     def parse_starttag(self,i):
         j=sgmllib.SGMLParser.parse_starttag(self, i)
         if self._type == 'application/xhtml+xml':
-            if j>2 and self.rawdata[j-2:j]==_s2bytes('/>'):
+            if j>2 and self.rawdata[j-2:j]=='/>':
                 self.unknown_endtag(self.lasttag)
         return j
 
