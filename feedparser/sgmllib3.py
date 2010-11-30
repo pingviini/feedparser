@@ -8,12 +8,6 @@
 # and CDATA (character data -- only end tags are special).  RCDATA is
 # not supported at all.
 
-
-from warnings import warnpy3k
-warnpy3k("the sgmllib module has been removed in Python 3.0",
-         stacklevel=2)
-del warnpy3k
-
 import _markupbase
 import re
 
