@@ -767,6 +767,11 @@ class _FeedParserMixin:
                 else:
                     pieces = pieces[1:-1]
 
+        # Ensure each piece is a str for Python 3
+        for (i, v) in enumerate(pieces):
+            if not isinstance(v, basestring):
+                pieces[i] = v.decode('utf-8')
+
         output = ''.join(pieces)
         if stripWhitespace:
             output = output.strip()
@@ -841,7 +846,7 @@ class _FeedParserMixin:
 
         # address common error where people take data that is already
         # utf-8, presume that it is iso-8859-1, and re-encode it.
-        if self.encoding=='utf-8' and type(output) == type(u''):
+        if self.encoding in ('utf-8', 'utf-8_INVALID_PYTHON_3') and type(output) == type(u''):
             try:
                 output = unicode(output.encode('iso-8859-1'), 'utf-8')
             except:
@@ -1754,7 +1759,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
     def parse_starttag(self,i):
         j=sgmllib.SGMLParser.parse_starttag(self, i)
         if self._type == 'application/xhtml+xml':
-            if j>2 and self.rawdata[j-2:j]==_s2bytes('/>'):
+            if j>2 and self.rawdata[j-2:j]=='/>':
                 self.unknown_endtag(self.lasttag)
         return j
 
@@ -1768,6 +1773,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
             bytes
             if bytes is str:
                 raise NameError
+            self.encoding = self.encoding + '_INVALID_PYTHON_3'
         except NameError:
             if self.encoding and type(data) == type(u''):
                 data = data.encode(self.encoding)
@@ -2774,9 +2780,9 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
         # iri support
         try:
             if isinstance(url_file_stream_or_string,unicode):
-                url_file_stream_or_string = url_file_stream_or_string.encode('idna')
+                url_file_stream_or_string = url_file_stream_or_string.encode('idna').decode('utf-8')
             else:
-                url_file_stream_or_string = url_file_stream_or_string.decode('utf-8').encode('idna')
+                url_file_stream_or_string = url_file_stream_or_string.decode('utf-8').encode('idna').decode('utf-8')
         except:
             pass
 
@@ -2949,7 +2955,7 @@ def _parse_date_iso8601(dateString):
     # Python's time.mktime() is a wrapper around the ANSI C mktime(3c)
     # which is guaranteed to normalize d/m/y/h/m/s.
     # Many implementations have bugs, but we'll pretend they don't.
-    return time.localtime(time.mktime(tm))
+    return time.localtime(time.mktime(tuple(tm)))
 registerDateHandler(_parse_date_iso8601)
     
 # 8-bit date handling routines written by ytrewq1.
@@ -3190,8 +3196,8 @@ def _parse_date_w3dtf(dateString):
 
     __date_re = ('(?P<year>\d\d\d\d)'
                  '(?:(?P<dsep>-|)'
-                 '(?:(?P<julian>\d\d\d)'
-                 '|(?P<month>\d\d)(?:(?P=dsep)(?P<day>\d\d))?))?')
+                 '(?:(?P<month>\d\d)(?:(?P=dsep)(?P<day>\d\d))?'
+                 '|(?P<julian>\d\d\d)))?')
     __tzd_re = '(?P<tzd>[-+](?P<tzdhours>\d\d)(?::?(?P<tzdminutes>\d\d))|Z)'
     __tzd_rx = re.compile(__tzd_re)
     __time_re = ('(?P<hours>\d\d)(?P<tsep>:|)(?P<minutes>\d\d)'
@@ -3484,7 +3490,7 @@ def _stripDoctype(data):
            replacement=_s2bytes('<!DOCTYPE feed [\n  <!ENTITY') + _s2bytes('>\n  <!ENTITY ').join(safe_entities) + _s2bytes('>\n]>')
     data = doctype_pattern.sub(replacement, head) + data
 
-    return version, data, dict(replacement and safe_pattern.findall(replacement))
+    return version, data, dict(replacement and [(k.decode('utf-8'), v.decode('utf-8')) for k, v in safe_pattern.findall(replacement)])
     
 def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, referrer=None, handlers=[], extra_headers={}):
     '''Parse a feed from a URL, file, stream, or string.
@@ -3571,8 +3577,8 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     if data is not None:
         result['version'], data, entities = _stripDoctype(data)
 
-    baseuri = http_headers.get('content-location', result.get('href'))
-    baselang = http_headers.get('content-language', None)
+    baseuri = http_headers.get('content-location', http_headers.get('Content-Location', result.get('href')))
+    baselang = http_headers.get('content-language', http_headers.get('Content-Language', None))
 
     # if server sent 304, we're done
     if result.get('status', 0) == 304:
@@ -3680,7 +3686,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
             use_strict_parser = 0
     if not use_strict_parser:
         feedparser = _LooseFeedParser(baseuri, baselang, known_encoding and 'utf-8' or '', entities)
-        feedparser.feed(data)
+        feedparser.feed(data.decode('utf-8'))
     result['feed'] = feedparser.feeddata
     result['entries'] = feedparser.entries
     result['version'] = result['version'] or feedparser.version
