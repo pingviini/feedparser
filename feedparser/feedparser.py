@@ -965,9 +965,12 @@ class _FeedParserMixin:
             attrsD['href'] = href
         return attrsD
     
-    def _save(self, key, value):
+    def _save(self, key, value, overwrite=False):
         context = self._getContext()
-        context.setdefault(key, value)
+        if overwrite:
+            context[key] = value
+        else:
+            context.setdefault(key, value)
 
     def _start_rss(self, attrsD):
         versionmap = {'0.91': 'rss091u',
@@ -1049,6 +1052,10 @@ class _FeedParserMixin:
     def _start_author(self, attrsD):
         self.inauthor = 1
         self.push('author', 1)
+        # Append a new FeedParserDict when expecting an author
+        context = self._getContext()
+        context.setdefault('authors', [])
+        context['authors'].append(FeedParserDict())
     _start_managingeditor = _start_author
     _start_dc_author = _start_author
     _start_dc_creator = _start_author
@@ -1183,6 +1190,8 @@ class _FeedParserMixin:
         context.setdefault(prefix + '_detail', FeedParserDict())
         context[prefix + '_detail'][key] = value
         self._sync_author_detail()
+        context.setdefault('authors', [FeedParserDict()])
+        context['authors'][-1][key] = value
 
     def _save_contributor(self, key, value):
         context = self._getContext()
@@ -1288,7 +1297,7 @@ class _FeedParserMixin:
 
     def _end_published(self):
         value = self.pop('published')
-        self._save('published_parsed', _parse_date(value))
+        self._save('published_parsed', _parse_date(value), overwrite=True)
     _end_dcterms_issued = _end_published
     _end_issued = _end_published
 
@@ -1302,7 +1311,7 @@ class _FeedParserMixin:
     def _end_updated(self):
         value = self.pop('updated')
         parsed_value = _parse_date(value)
-        self._save('updated_parsed', parsed_value)
+        self._save('updated_parsed', parsed_value, overwrite=True)
     _end_modified = _end_updated
     _end_dcterms_modified = _end_updated
     _end_pubdate = _end_updated
@@ -1314,14 +1323,14 @@ class _FeedParserMixin:
 
     def _end_created(self):
         value = self.pop('created')
-        self._save('created_parsed', _parse_date(value))
+        self._save('created_parsed', _parse_date(value), overwrite=True)
     _end_dcterms_created = _end_created
 
     def _start_expirationdate(self, attrsD):
         self.push('expired', 1)
 
     def _end_expirationdate(self):
-        self._save('expired_parsed', _parse_date(self.pop('expired')))
+        self._save('expired_parsed', _parse_date(self.pop('expired')), overwrite=True)
 
     def _start_cc_license(self, attrsD):
         context = self._getContext()
@@ -2118,6 +2127,8 @@ class _MicroformatsParser:
                         arLines.append(self.vcardFold('AGENT:' + sAgentValue))
                     elmAgent['class'] = ''
                     elmAgent.contents = []
+                    # Completely remove the agent element from the parse tree
+                    elmAgent.extract()
                 else:
                     sAgentValue = self.getPropertyValue(elmAgent, 'value', self.URI, bAutoEscape=1);
                     if sAgentValue:
@@ -2771,7 +2782,7 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
 
         # try to open with urllib2 (to use optional headers)
         request = _build_urllib2_request(url_file_stream_or_string, agent, etag, modified, referrer, auth, extra_headers)
-        opener = apply(urllib2.build_opener, tuple([_FeedURLHandler()] + handlers))
+        opener = apply(urllib2.build_opener, tuple(handlers + [_FeedURLHandler()]))
         opener.addheaders = [] # RMK - must clear so we only send our custom User-Agent
         try:
             return opener.open(request)
@@ -3184,7 +3195,7 @@ def _parse_date_w3dtf(dateString):
     __tzd_re = '(?P<tzd>[-+](?P<tzdhours>\d\d)(?::?(?P<tzdminutes>\d\d))|Z)'
     __tzd_rx = re.compile(__tzd_re)
     __time_re = ('(?P<hours>\d\d)(?P<tsep>:|)(?P<minutes>\d\d)'
-                 '(?:(?P=tsep)(?P<seconds>\d\d(?:[.,]\d+)?))?'
+                 '(?:(?P=tsep)(?P<seconds>\d\d)(?:[.,]\d+)?)?'
                  + __tzd_re)
     __datetime_re = '%s(?:T%s)?' % (__date_re, __time_re)
     __datetime_rx = re.compile(__datetime_re)
@@ -3637,7 +3648,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     elif proposed_encoding != result['encoding']:
         result['bozo'] = 1
         result['bozo_exception'] = CharacterEncodingOverride( \
-            'documented declared as %s, but parsed as %s' % \
+            'document declared as %s, but parsed as %s' % \
             (result['encoding'], proposed_encoding))
         result['encoding'] = proposed_encoding
 
