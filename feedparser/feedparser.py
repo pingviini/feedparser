@@ -103,7 +103,7 @@ def _l2bytes(l):
     return ''.join(map(chr, l))
 
 # ---------- required modules (should come with any Python distribution) ----------
-import sgmllib, re, sys, copy, urlparse, time, types, cgi, urllib, urllib2
+import sgmllib, re, sys, copy, urlparse, time, types, cgi, urllib, urllib2, datetime
 try:
     from io import BytesIO as _StringIO
 except ImportError:
@@ -2134,8 +2134,6 @@ class _MicroformatsParser:
                     sAgentValue = sAgentValue.replace(';', '\\;')
                     if sAgentValue:
                         arLines.append(self.vcardFold('AGENT:' + sAgentValue))
-                    elmAgent['class'] = ''
-                    elmAgent.contents = []
                     # Completely remove the agent element from the parse tree
                     elmAgent.extract()
                 else:
@@ -2814,6 +2812,8 @@ def _build_urllib2_request(url, agent, etag, modified, referrer, auth, extra_hea
         request.add_header('If-None-Match', etag)
     if type(modified) == type(''):
         modified = _parse_date(modified)
+    elif isinstance(modified, datetime.datetime):
+        modified = modified.utctimetuple()
     if modified:
         # format into an RFC 1123-compliant timestamp. We can't use
         # time.strftime() since the %a and %b directives can be affected
