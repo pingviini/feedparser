@@ -82,6 +82,14 @@ try:
 except ImportError:
     from email import _parseaddr as rfc822
 
+try:
+    # Python 3.1 introduces bytes.maketrans and simultaneously
+    # deprecates string.maketrans; use bytes.maketrans if possible
+    _maketrans = bytes.maketrans
+except (NameError, AttributeError):
+    import string
+    _maketrans = string.maketrans
+    
 def _s2bytes(s):
   # Convert a UTF-8 str to bytes if the interpreter is Python 3
   try:
@@ -359,8 +367,7 @@ def _ebcdic_to_ascii(s):
             92,159,83,84,85,86,87,88,89,90,244,245,246,247,248,249,
             48,49,50,51,52,53,54,55,56,57,250,251,252,253,254,255
             )
-        import string
-        _ebcdic_to_ascii_map = string.maketrans( \
+        _ebcdic_to_ascii_map = _maketrans( \
             _l2bytes(range(256)), _l2bytes(emap))
     return s.translate(_ebcdic_to_ascii_map)
  
