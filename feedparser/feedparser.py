@@ -90,6 +90,14 @@ except (NameError, AttributeError):
     import string
     _maketrans = string.maketrans
     
+# base64 support for Atom feeds that contain embedded binary data
+try:
+    import base64, binascii
+    # Python 3.1 deprecates decodestring in favor of decodebytes
+    _base64decode = getattr(base64, 'decodebytes', base64.decodestring)
+except:
+    base64 = binascii = None
+
 def _s2bytes(s):
   # Convert a UTF-8 str to bytes if the interpreter is Python 3
   try:
@@ -150,12 +158,6 @@ except:
         for char, entity in entities:
             data = data.replace(char, entity)
         return data
-
-# base64 support for Atom feeds that contain embedded binary data
-try:
-    import base64, binascii
-except:
-    base64 = binascii = None
 
 # cjkcodecs and iconv_codec provide support for more character encodings.
 # Both are available from http://cjkpython.i18n.org/
@@ -787,7 +789,7 @@ class _FeedParserMixin:
         # decode base64 content
         if base64 and self.contentparams.get('base64', 0):
             try:
-                output = base64.decodestring(output)
+                output = _base64decode(output)
             except binascii.Error:
                 pass
             except binascii.Incomplete:
@@ -795,7 +797,7 @@ class _FeedParserMixin:
             except TypeError:
                 # In Python 3, base64 takes and outputs bytes, not str
                 # This may not be the most correct way to accomplish this
-                output = base64.decodestring(output.encode('utf-8')).decode('utf-8')
+                output = _base64decode(output.encode('utf-8')).decode('utf-8')
                 
         # resolve relative URIs
         if (element in self.can_be_relative_uri) and output:
@@ -2724,7 +2726,7 @@ class _FeedURLHandler(urllib2.HTTPDigestAuthHandler, urllib2.HTTPRedirectHandler
         try:
             assert sys.version.split()[0] >= '2.3.3'
             assert base64 != None
-            user, passw = base64.decodestring(req.headers['Authorization'].split(' ')[1]).split(':')
+            user, passw = _base64decode(req.headers['Authorization'].split(' ')[1]).split(':')
             realm = re.findall('realm="([^"]*)"', headers['WWW-Authenticate'])[0]
             self.add_password(realm, host, user, passw)
             retry = self.http_error_auth_reqed('www-authenticate', host, req, headers)
