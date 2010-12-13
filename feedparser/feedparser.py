@@ -211,7 +211,7 @@ class UndeclaredNamespace(Exception): pass
 
 sgmllib.tagfind = re.compile('[a-zA-Z][-_.:a-zA-Z0-9]*')
 sgmllib.special = re.compile('<!')
-sgmllib.charref = re.compile('&#(\d+|x[0-9a-fA-F]+);')
+sgmllib.charref = re.compile('&#(\d+|[xX][0-9a-fA-F]+);')
 
 if sgmllib.endbracket.search(' <').start(0):
     class EndBracketMatch:
@@ -1321,6 +1321,7 @@ class _FeedParserMixin:
     _start_dcterms_modified = _start_updated
     _start_pubdate = _start_updated
     _start_dc_date = _start_updated
+    _start_lastbuilddate = _start_updated
 
     def _end_updated(self):
         value = self.pop('updated')
@@ -1330,6 +1331,7 @@ class _FeedParserMixin:
     _end_dcterms_modified = _end_updated
     _end_pubdate = _end_updated
     _end_dc_date = _end_updated
+    _end_lastbuilddate = _end_updated
 
     def _start_created(self, attrsD):
         self.push('created', 1)
@@ -1427,8 +1429,6 @@ class _FeedParserMixin:
         attrsD = self._itsAnHrefDamnIt(attrsD)
         if attrsD.has_key('href'):
             attrsD['href'] = self.resolveURI(attrsD['href'])
-            if attrsD.get('rel')=='enclosure' and not context.get('id'):
-                context['id'] = attrsD.get('href')
         expectingText = self.infeed or self.inentry or self.insource
         context.setdefault('links', [])
         context['links'].append(FeedParserDict(attrsD))
@@ -1557,9 +1557,6 @@ class _FeedParserMixin:
         context = self._getContext()
         attrsD['rel']='enclosure'
         context.setdefault('links', []).append(FeedParserDict(attrsD))
-        href = attrsD.get('href')
-        if href and not context.get('id'):
-            context['id'] = href
             
     def _start_source(self, attrsD):
         if 'url' in attrsD:
@@ -1609,7 +1606,8 @@ class _FeedParserMixin:
 
     def _start_itunes_image(self, attrsD):
         self.push('itunes_image', 0)
-        self._getContext()['image'] = FeedParserDict({'href': attrsD.get('href')})
+        if attrsD.get('href'):
+            self._getContext()['image'] = FeedParserDict({'href': attrsD.get('href')})
     _start_itunes_link = _start_itunes_image
         
     def _end_itunes_block(self):
@@ -2349,7 +2347,12 @@ class _MicroformatsParser:
 def _parseMicroformats(htmlSource, baseURI, encoding):
     if not BeautifulSoup: return
     if _debug: sys.stderr.write('entering _parseMicroformats\n')
-    p = _MicroformatsParser(htmlSource, baseURI, encoding)
+    try:
+        p = _MicroformatsParser(htmlSource, baseURI, encoding)
+    except UnicodeEncodeError:
+        # sgmllib throws this exception when performing lookups of tags
+        # with non-ASCII characters in them.
+        return
     p.vcard = p.findVCards(p.document)
     p.findTags()
     p.findEnclosures()
@@ -2644,6 +2647,7 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
 
 def _sanitizeHTML(htmlSource, encoding, _type):
     p = _HTMLSanitizer(encoding, _type)
+    htmlSource = htmlSource.replace('<![CDATA[', '&lt;![CDATA[')
     p.feed(htmlSource)
     data = p.output()
     if TIDY_MARKUP:
@@ -2773,7 +2777,7 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
     if url_file_stream_or_string == '-':
         return sys.stdin
 
-    if urlparse.urlparse(url_file_stream_or_string)[0] in ('http', 'https', 'ftp'):
+    if urlparse.urlparse(url_file_stream_or_string)[0] in ('http', 'https', 'ftp', 'file'):
         if not agent:
             agent = USER_AGENT
         # test for inline user:password for basic auth
@@ -2785,7 +2789,7 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
                 user_passwd, realhost = urllib.splituser(realhost)
                 if user_passwd:
                     url_file_stream_or_string = '%s://%s%s' % (urltype, realhost, rest)
-                    auth = base64.encodestring(user_passwd).strip()
+                    auth = base64.standard_b64encode(user_passwd).strip()
 
         # iri support
         try:
@@ -3236,6 +3240,10 @@ def _parse_date_rfc822(dateString):
             data[3:] = [s[:i], s[i+1:]]
         else:
             data.append('')
+        dateString = " ".join(data)
+    # Account for the Etc/GMT timezone by stripping 'Etc/'
+    elif len(data) == 5 and data[4].lower().startswith('etc/'):
+        data[4] = data[4][4:]
         dateString = " ".join(data)
     if len(data) < 5:
         dateString += ' 00:00:00 GMT'
