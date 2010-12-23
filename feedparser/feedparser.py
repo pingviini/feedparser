@@ -214,14 +214,24 @@ sgmllib.special = re.compile('<!')
 sgmllib.charref = re.compile('&#(\d+|[xX][0-9a-fA-F]+);')
 
 if sgmllib.endbracket.search(' <').start(0):
-    class EndBracketMatch:
-        endbracket = re.compile('''([^'"<>]|"[^"]*"(?=>|/|\s|\w+=)|'[^']*'(?=>|/|\s|\w+=))*(?=[<>])|.*?(?=[<>])''')
+    class EndBracketRegEx:
+        def __init__(self):
+            # Overriding the built-in sgmllib.endbracket regex allows the
+            # parser to find angle brackets embedded in element attributes.
+            self.endbracket = re.compile('''([^'"<>]|"[^"]*"(?=>|/|\s|\w+=)|'[^']*'(?=>|/|\s|\w+=))*(?=[<>])|.*?(?=[<>])''')
         def search(self,string,index=0):
-            self.match = self.endbracket.match(string,index)
-            if self.match: return self
-        def start(self,n):
+            match = self.endbracket.match(string,index)
+            if match is not None:
+                # Returning a new object in the calling thread's context
+                # resolves a thread-safety.
+                return EndBracketMatch(match) 
+            return None
+    class EndBracketMatch:
+        def __init__(self, match):
+            self.match = match
+        def start(self, n):
             return self.match.end(n)
-    sgmllib.endbracket = EndBracketMatch()
+    sgmllib.endbracket = EndBracketRegEx()
 
 SUPPORTED_VERSIONS = {'': 'unknown',
                       'rss090': 'RSS 0.90',
@@ -259,7 +269,7 @@ class FeedParserDict(UserDict):
               'guid': 'id',
               'date': 'updated',
               'date_parsed': 'updated_parsed',
-              'description': ['subtitle', 'summary'],
+              'description': ['summary', 'subtitle'],
               'url': ['href'],
               'modified': 'updated',
               'modified_parsed': 'updated_parsed',
@@ -880,9 +890,10 @@ class _FeedParserMixin:
                 contentparams['value'] = output
                 self.entries[-1][element].append(contentparams)
             elif element == 'link':
-                self.entries[-1][element] = output
-                if output:
-                    self.entries[-1]['links'][-1]['href'] = output
+                if not self.inimage:
+                    self.entries[-1][element] = output
+                    if output:
+                        self.entries[-1]['links'][-1]['href'] = output
             else:
                 if element == 'description':
                     element = 'summary'
@@ -1041,7 +1052,8 @@ class _FeedParserMixin:
     
     def _start_image(self, attrsD):
         context = self._getContext()
-        context.setdefault('image', FeedParserDict())
+        if not self.inentry:
+            context.setdefault('image', FeedParserDict())
         self.inimage = 1
         self.hasTitle = 0
         self.push('image', 0)
@@ -1395,6 +1407,10 @@ class _FeedParserMixin:
     _start_dc_subject = _start_category
     _start_keywords = _start_category
         
+    def _start_media_category(self, attrsD):
+        attrsD.setdefault('scheme', 'http://search.yahoo.com/mrss/category_schema')
+        self._start_category(attrsD)
+
     def _end_itunes_keywords(self):
         for term in self.pop('itunes_keywords').split():
             self._addTag(term, 'http://www.itunes.com/', None)
@@ -1415,6 +1431,7 @@ class _FeedParserMixin:
     _end_dc_subject = _end_category
     _end_keywords = _end_category
     _end_itunes_category = _end_category
+    _end_media_category = _end_category
 
     def _start_cloud(self, attrsD):
         self._getContext()['cloud'] = FeedParserDict(attrsD)
@@ -1431,7 +1448,8 @@ class _FeedParserMixin:
             attrsD['href'] = self.resolveURI(attrsD['href'])
         expectingText = self.infeed or self.inentry or self.insource
         context.setdefault('links', [])
-        context['links'].append(FeedParserDict(attrsD))
+        if not (self.inentry and self.inimage):
+            context['links'].append(FeedParserDict(attrsD))
         if attrsD.has_key('href'):
             expectingText = 0
             if (attrsD.get('rel') == 'alternate') and (self.mapContentType(attrsD.get('type')) in self.html_types):
@@ -1593,10 +1611,10 @@ class _FeedParserMixin:
     _start_fullitem = _start_content_encoded
 
     def _end_content(self):
-        copyToDescription = self.mapContentType(self.contentparams.get('type')) in (['text/plain'] + self.html_types)
+        copyToSummary = self.mapContentType(self.contentparams.get('type')) in (['text/plain'] + self.html_types)
         value = self.popContent('content')
-        if copyToDescription:
-            self._save('description', value)
+        if copyToSummary:
+            self._save('summary', value)
 
     _end_body = _end_content
     _end_xhtml_body = _end_content
@@ -2089,10 +2107,10 @@ class _MicroformatsParser:
             arLines = []
             
             def processSingleString(sProperty):
-                sValue = self.getPropertyValue(elmCard, sProperty, self.STRING, bAutoEscape=1)
+                sValue = self.getPropertyValue(elmCard, sProperty, self.STRING, bAutoEscape=1).decode(self.encoding)
                 if sValue:
                     arLines.append(self.vcardFold(sProperty.upper() + ':' + sValue))
-                return sValue or ''
+                return sValue or u''
             
             def processSingleURI(sProperty):
                 sValue = self.getPropertyValue(elmCard, sProperty, self.URI)
@@ -2289,8 +2307,8 @@ class _MicroformatsParser:
             processSingleURI('key')
     
             if arLines:
-                arLines = ['BEGIN:vCard','VERSION:3.0'] + arLines + ['END:vCard']
-                sVCards += '\n'.join(arLines) + '\n'
+                arLines = [u'BEGIN:vCard',u'VERSION:3.0'] + arLines + [u'END:vCard']
+                sVCards += u'\n'.join(arLines) + u'\n'
     
         return sVCards.strip()
     
@@ -2777,7 +2795,12 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
     if url_file_stream_or_string == '-':
         return sys.stdin
 
-    if urlparse.urlparse(url_file_stream_or_string)[0] in ('http', 'https', 'ftp', 'file'):
+    if urlparse.urlparse(url_file_stream_or_string)[0] in ('http', 'https', 'ftp', 'file', 'feed'):
+        # Deal with the feed URI scheme
+        if url_file_stream_or_string.startswith('feed:http'):
+            url_file_stream_or_string = url_file_stream_or_string[5:]
+        elif url_file_stream_or_string.startswith('feed:'):
+            url_file_stream_or_string = 'http:' + url_file_stream_or_string[5:]
         if not agent:
             agent = USER_AGENT
         # test for inline user:password for basic auth
@@ -3705,8 +3728,8 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
             result['bozo_exception'] = feedparser.exc or e
             use_strict_parser = 0
     if not use_strict_parser:
-        feedparser = _LooseFeedParser(baseuri, baselang, known_encoding and 'utf-8' or '', entities)
-        feedparser.feed(data.decode('utf-8'))
+        feedparser = _LooseFeedParser(baseuri, baselang, 'utf-8', entities)
+        feedparser.feed(data.decode('utf-8', 'replace'))
     result['feed'] = feedparser.feeddata
     result['entries'] = feedparser.entries
     result['version'] = result['version'] or feedparser.version
