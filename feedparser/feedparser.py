@@ -533,7 +533,6 @@ class _FeedParserMixin:
         self.insource = 0
         self.sourcedata = FeedParserDict()
         self.contentparams = FeedParserDict()
-        self._summaryKey = None
         self.namespacemap = {}
         self.elementstack = []
         self.basestack = []
@@ -1527,23 +1526,14 @@ class _FeedParserMixin:
         self.hasTitle = hasTitle
 
     def _start_description(self, attrsD):
-        context = self._getContext()
-        if context.has_key('summary'):
-            self._summaryKey = 'content'
-            self._start_content(attrsD)
-        else:
-            self.pushContent('description', attrsD, 'text/html', self.infeed or self.inentry or self.insource)
+        self.pushContent('description', attrsD, 'text/html', self.infeed or self.inentry or self.insource)
     _start_dc_description = _start_description
 
     def _start_abstract(self, attrsD):
         self.pushContent('description', attrsD, 'text/plain', self.infeed or self.inentry or self.insource)
 
     def _end_description(self):
-        if self._summaryKey == 'content':
-            self._end_content()
-        else:
-            value = self.popContent('description')
-        self._summaryKey = None
+        value = self.popContent('description')
     _end_abstract = _end_description
     _end_dc_description = _end_description
 
@@ -1585,21 +1575,11 @@ class _FeedParserMixin:
         self.pop('errorreportsto')
         
     def _start_summary(self, attrsD):
-        context = self._getContext()
-        if context.has_key('summary'):
-            self._summaryKey = 'content'
-            self._start_content(attrsD)
-        else:
-            self._summaryKey = 'summary'
-            self.pushContent(self._summaryKey, attrsD, 'text/plain', 1)
+        self.pushContent('summary', attrsD, 'text/plain', 1)
     _start_itunes_summary = _start_summary
 
     def _end_summary(self):
-        if self._summaryKey == 'content':
-            self._end_content()
-        else:
-            self.popContent(self._summaryKey or 'summary')
-        self._summaryKey = None
+        self.popContent('summary')
     _end_itunes_summary = _end_summary
         
     def _start_enclosure(self, attrsD):
