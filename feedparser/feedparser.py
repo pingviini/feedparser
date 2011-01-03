@@ -118,6 +118,22 @@ def _l2bytes(l):
   except NameError:
     return ''.join(map(chr, l))
 
+# If you want feedparser to allow all URL schemes, set this to ()
+# List culled from Python's urlparse documentation at:
+#   http://docs.python.org/library/urlparse.html
+# as well as from "URI scheme" at Wikipedia:
+#   https://secure.wikimedia.org/wikipedia/en/wiki/URI_scheme
+# Many more will likely need to be added!
+ACCEPTABLE_URI_SCHEMES = (
+    'file', 'ftp', 'gopher', 'h323', 'hdl', 'http', 'https', 'imap', 'mailto',
+    'mms', 'news', 'nntp', 'prospero', 'rsync', 'rtsp', 'rtspu', 'sftp',
+    'shttp', 'sip', 'sips', 'snews', 'svn', 'svn+ssh', 'telnet', 'wais',
+    # Additional common-but-unofficial schemes
+    'aim', 'callto', 'cvs', 'facetime', 'feed', 'git', 'gtalk', 'irc', 'ircs',
+    'irc6', 'itms', 'mms', 'msnim', 'skype', 'ssh', 'smb', 'svn', 'ymsg',
+)
+#ACCEPTABLE_URI_SCHEMES = ()
+
 # ---------- required modules (should come with any Python distribution) ----------
 import sgmllib, re, sys, copy, urlparse, time, types, cgi, urllib, urllib2, datetime
 try:
@@ -534,6 +550,10 @@ class _FeedParserMixin:
         # normalize attrs
         attrs = [(k.lower(), v) for k, v in attrs]
         attrs = [(k, k in ('rel', 'type') and v.lower() or v) for k, v in attrs]
+        # the sgml parser doesn't handle entities in attributes, but
+        # strict xml parsers do -- account for this difference
+        if isinstance(self, _LooseFeedParser):
+            attrs = [(k, v.replace('&amp;', '&')) for k, v in attrs]
         
         # track xml:base and xml:lang
         attrsD = dict(attrs)
@@ -543,7 +563,12 @@ class _FeedParserMixin:
                 baseuri = unicode(baseuri, self.encoding)
             except:
                 baseuri = unicode(baseuri, 'iso-8859-1')
-        self.baseuri = _urljoin(self.baseuri, baseuri)
+        # ensure that self.baseuri is always an absolute URI that
+        # uses a whitelisted URI scheme (e.g. not `javscript:`)
+        if self.baseuri:
+            self.baseuri = _makeSafeAbsoluteURI(self.baseuri, baseuri) or self.baseuri
+        else:
+            self.baseuri = _urljoin(self.baseuri, baseuri)
         lang = attrsD.get('xml:lang', attrsD.get('lang'))
         if lang == '':
             # xml:lang could be explicitly set to '', we need to capture that
@@ -891,6 +916,10 @@ class _FeedParserMixin:
                 self.entries[-1][element].append(contentparams)
             elif element == 'link':
                 if not self.inimage:
+                    # query variables in urls in link elements are improperly
+                    # converted from `?a=1&b=2` to `?a=1&b;=2` as if they're
+                    # unhandled character references. fix this special case.
+                    output = re.sub("&([A-Za-z0-9_]+);", "&\g<1>", output)
                     self.entries[-1][element] = output
                     if output:
                         self.entries[-1]['links'][-1]['href'] = output
@@ -908,6 +937,9 @@ class _FeedParserMixin:
                 element = 'subtitle'
             context[element] = output
             if element == 'link':
+                # fix query variables; see above for the explanation
+                output = re.sub("&([A-Za-z0-9_]+);", "&\g<1>", output)
+                context[element] = output
                 context['links'][-1]['href'] = output
             elif self.incontent:
                 contentparams = copy.deepcopy(self.contentparams)
@@ -2409,7 +2441,7 @@ class _RelativeURIResolver(_BaseHTMLProcessor):
         self.baseuri = baseuri
 
     def resolveURI(self, uri):
-        return _urljoin(self.baseuri, uri.strip())
+        return _makeSafeAbsoluteURI(_urljoin(self.baseuri, uri.strip()))
     
     def unknown_starttag(self, tag, attrs):
         if _debug:
@@ -2425,6 +2457,21 @@ def _resolveRelativeURIs(htmlSource, baseURI, encoding, _type):
     p = _RelativeURIResolver(baseURI, encoding, _type)
     p.feed(htmlSource)
     return p.output()
+
+def _makeSafeAbsoluteURI(base, rel=None):
+    # bail if ACCEPTABLE_URI_SCHEMES is empty
+    if not ACCEPTABLE_URI_SCHEMES:
+        return _urljoin(base, rel or '')
+    if not base:
+        return u''
+    if not rel:
+        if base.strip().split(':', 1)[0] not in ACCEPTABLE_URI_SCHEMES:
+            return u''
+        return base
+    uri = _urljoin(base, rel)
+    if uri.strip().split(':', 1)[0] not in ACCEPTABLE_URI_SCHEMES:
+        return u''
+    return uri
 
 class _HTMLSanitizer(_BaseHTMLProcessor):
     acceptable_elements = ['a', 'abbr', 'acronym', 'address', 'area', 'article',
@@ -2757,7 +2804,7 @@ class _FeedURLHandler(urllib2.HTTPDigestAuthHandler, urllib2.HTTPRedirectHandler
         except:
             return self.http_error_default(req, fp, code, msg, headers)
 
-def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, handlers, extra_headers):
+def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, handlers, request_headers):
     """URL, filename, or string --> stream
 
     This function lets you define parsers that take any input source
@@ -2785,7 +2832,7 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
     If handlers is supplied, it is a list of handlers used to build a
     urllib2 opener.
 
-    if extra_headers is supplied it is a dictionary of HTTP request headers
+    if request_headers is supplied it is a dictionary of HTTP request headers
     that will override the values generated by FeedParser.
     """
 
@@ -2824,7 +2871,7 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
             pass
 
         # try to open with urllib2 (to use optional headers)
-        request = _build_urllib2_request(url_file_stream_or_string, agent, etag, modified, referrer, auth, extra_headers)
+        request = _build_urllib2_request(url_file_stream_or_string, agent, etag, modified, referrer, auth, request_headers)
         opener = apply(urllib2.build_opener, tuple(handlers + [_FeedURLHandler()]))
         opener.addheaders = [] # RMK - must clear so we only send our custom User-Agent
         try:
@@ -2841,7 +2888,7 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
     # treat url_file_stream_or_string as string
     return _StringIO(str(url_file_stream_or_string))
 
-def _build_urllib2_request(url, agent, etag, modified, referrer, auth, extra_headers):
+def _build_urllib2_request(url, agent, etag, modified, referrer, auth, request_headers):
     request = urllib2.Request(url)
     request.add_header('User-Agent', agent)
     if etag:
@@ -2874,7 +2921,7 @@ def _build_urllib2_request(url, agent, etag, modified, referrer, auth, extra_hea
         request.add_header('Accept', ACCEPT_HEADER)
     # use this for whatever -- cookies, special headers, etc
     # [('Cookie','Something'),('x-special-header','Another Value')]
-    for header_name, header_value in extra_headers.items():
+    for header_name, header_value in request_headers.items():
         request.add_header(header_name, header_value)
     request.add_header('A-IM', 'feed') # RFC 3229 support
     return request
@@ -3535,10 +3582,10 @@ def _stripDoctype(data):
 
     return version, data, dict(replacement and [(k.decode('utf-8'), v.decode('utf-8')) for k, v in safe_pattern.findall(replacement)])
     
-def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, referrer=None, handlers=[], extra_headers={}):
+def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, referrer=None, handlers=[], request_headers={}, response_headers={}):
     '''Parse a feed from a URL, file, stream, or string.
     
-    extra_headers, if given, is a dict from http header name to value to add
+    request_headers, if given, is a dict from http header name to value to add
     to the request; this overrides internally generated values.
     '''
     result = FeedParserDict()
@@ -3549,7 +3596,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     if not isinstance(handlers, list):
         handlers = [handlers]
     try:
-        f = _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, handlers, extra_headers)
+        f = _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, handlers, request_headers)
         data = f.read()
     except Exception, e:
         result['bozo'] = 1
@@ -3557,9 +3604,17 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
         data = None
         f = None
 
+    if hasattr(f, 'headers'):
+        result['headers'] = dict(f.headers)
+    # overwrite existing headers using response_headers
+    if 'headers' in result:
+        result['headers'].update(response_headers)
+    elif response_headers:
+        result['headers'] = copy.deepcopy(response_headers)
+
     # if feed is gzip-compressed, decompress it
-    if f and data and hasattr(f, 'headers'):
-        if gzip and f.headers.get('content-encoding', '') == 'gzip':
+    if f and data and 'headers' in result:
+        if gzip and result['headers'].get('content-encoding') == 'gzip':
             try:
                 data = gzip.GzipFile(fileobj=_StringIO(data)).read()
             except Exception, e:
@@ -3570,7 +3625,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
                 result['bozo'] = 1
                 result['bozo_exception'] = e
                 data = ''
-        elif zlib and f.headers.get('content-encoding', '') == 'deflate':
+        elif zlib and result['headers'].get('content-encoding') == 'deflate':
             try:
                 data = zlib.decompress(data, -zlib.MAX_WBITS)
             except Exception, e:
@@ -3579,25 +3634,20 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
                 data = ''
 
     # save HTTP headers
-    if hasattr(f, 'info'):
-        info = f.info()
-        if hasattr(info, 'getheader'):
-            etag = info.getheader('ETag')
-            last_modified = info.getheader('Last-Modified')
-        else:
-            etag = f.headers.get('ETag')
-            last_modified = f.headers.get('Last-Modified')
-        if etag:
-            result['etag'] = etag
-        if last_modified:
-            result['modified'] = _parse_date(last_modified)
+    if 'headers' in result:
+        if 'etag' in result['headers'] or 'ETag' in result['headers']:
+            etag = result['headers'].get('etag', result['headers'].get('ETag'))
+            if etag:
+                result['etag'] = etag
+        if 'last-modified' in result['headers'] or 'Last-Modified' in result['headers']:
+            modified = result['headers'].get('last-modified', result['headers'].get('Last-Modified'))
+            if modified:
+                result['modified'] = _parse_date(modified)
     if hasattr(f, 'url'):
         result['href'] = f.url
         result['status'] = 200
     if hasattr(f, 'status'):
         result['status'] = f.status
-    if hasattr(f, 'headers'):
-        result['headers'] = dict(f.headers)
     if hasattr(f, 'close'):
         f.close()
 
@@ -3620,7 +3670,11 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     if data is not None:
         result['version'], data, entities = _stripDoctype(data)
 
-    baseuri = http_headers.get('content-location', http_headers.get('Content-Location', result.get('href')))
+    # ensure that baseuri is an absolute uri using an acceptable URI scheme
+    contentloc = http_headers.get('content-location', http_headers.get('Content-Location', ''))
+    href = result.get('href', '')
+    baseuri = _makeSafeAbsoluteURI(href, contentloc) or _makeSafeAbsoluteURI(contentloc) or href
+
     baselang = http_headers.get('content-language', http_headers.get('Content-Language', None))
 
     # if server sent 304, we're done
